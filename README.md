@@ -1,36 +1,37 @@
-# RoamJS Extension Base
+<a href="https://roamjs.com/">
+    <img src="https://avatars.githubusercontent.com/u/138642184" alt="RoamJS Logo" title="RoamJS" align="right" height="60" />
+</a>
 
-Stock base for [RoamJS](https://roamjs.com) Roam Research extensions. **Fork this repo** to start a new extension.
+# Stats
 
-## What's included
+Your graph, by the numbers—pages, content, links, and block types in one instant dashboard.
 
-- **roamjs-components** — shared utilities, DOM helpers, queries, writes, and UI components
-- **Samepage build** — `samepage build` produces the Roam Depot–ready bundle
-- **Settings panel** — example `extensionAPI.settings.panel.create` with an Enable switch
-- **TypeScript** — tsconfig extending `@samepage/scripts`
-- **CI** — GitHub Actions to build on push/PR (uses RoamJS secrets for publish)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoamJS/stats)
 
-## After forking
+![](https://github.com/RoamJS/stats/blob/main/src/media/roamjs-stats.webp)
 
-1. **Rename the repo** and update `package.json`:
-   - `name`: your extension slug (e.g. `my-extension`)
-   - `description`: one line describing the extension
+## Features
 
-2. **Implement in `src/index.ts`**:
-   - Keep or replace the settings panel
-   - Add your logic using `roamjs-components` (e.g. `createHTMLObserver`, `createBlock`, `renderToast`)
-   - Return `{ unload }` to clean up on unload
+- **Overview** — Pages, interconnections (block refs), Firebase links, external links
+- **Content breakdown** — Text blocks (count, words, characters), block quotes, code blocks
+- **Block types** — Counts for TODO, DONE, query, embed, table, kanban, video, roam/js (click a tag to open that page)
+- **Account** — Current user display name and email
 
-3. **Optional**: Add React components under `src/components/` (see [autocomplete](https://github.com/RoamJS/autocomplete), [giphy](https://github.com/RoamJS/giphy) for examples).
+Open the drawer via the command palette: **Stats: Toggle Stats Drawer**.
 
-4. **Secrets (for publish)** — in the forked repo, configure:
-   - `ROAMJS_RELEASE_TOKEN`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-   - `AWS_REGION`, `ROAMJS_PROXY` (vars)
+## Installation
 
-## Scripts
+Install from [Roam Depot](https://roamdepot.com) or load the extension in development (see below).
 
-- `npm start` — samepage dev (local development)
-- `npm run build:roam` — build for Roam (dry run; CI runs `npx samepage build`)
+## Development
+
+- `npm start` — run in development mode (`samepage dev`)
+- `npm run build:roam` — build for Roam (dry run; CI runs full publish)
+
+## Tech
+
+- **roamjs-components** — UI (Drawer, Card, etc.) and utilities
+- **Datalog** — stats are computed with `roamAlphaAPI.data.async.q` (pages, blocks, refs, links)
 
 ## License
 
