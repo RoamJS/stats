@@ -4,7 +4,7 @@ import renderOverlay, {
 } from "roamjs-components/util/renderOverlay";
 import getCurrentUserEmail from "roamjs-components/queries/getCurrentUserEmail";
 import getCurrentUserDisplayName from "roamjs-components/queries/getCurrentUserDisplayName";
-import { Drawer, Classes } from "@blueprintjs/core";
+import { Drawer, Classes, Spinner } from "@blueprintjs/core";
 
 import { scalar } from "~/utils/scalar";
 import {
@@ -35,7 +35,7 @@ const TAGS = [
   "roam/js",
 ];
 
-type Stats = {
+type Stats = Partial<{
   pages: number;
   nonCodeBlocks: number;
   nonCodeBlockWords: number;
@@ -49,62 +49,64 @@ type Stats = {
   tagCounts: Record<string, number>;
   firebaseLinks: number;
   externalLinks: number;
-};
+}>;
 
 const STATS_DRAWER_ID = "roamjs-stats-drawer";
 
-const baseQueries = [
-  queryPages,
-  queryNonCodeBlocks,
-  queryNonCodeBlockWords,
-  queryNonCodeBlockCharacters,
-  queryBlockquotes,
-  queryBlockquotesWords,
-  queryBlockquotesCharacters,
-  queryCodeBlocks,
-  queryCodeBlockCharacters,
-  queryInterconnections,
-  queryFireBaseAttachements,
-  queryExternalLinks,
-];
-
-const loadStats = async (): Promise<Stats> => {
-  const results = await Promise.all([
-    ...baseQueries.map(runQuery),
-    ...TAGS.map((tag) => runQuery(queryTagRefs(tag))),
-  ]);
-
-  const tagOffset = baseQueries.length;
-  const tagCounts: Record<string, number> = {};
-  TAGS.forEach((tag, i) => {
-    tagCounts[tag] = scalar(results[tagOffset + i]);
-  });
-
-  return {
-    pages: scalar(results[0]),
-    nonCodeBlocks: scalar(results[1]),
-    nonCodeBlockWords: scalar(results[2]),
-    nonCodeBlockChars: scalar(results[3]),
-    blockquotes: scalar(results[4]),
-    blockquotesWords: scalar(results[5]),
-    blockquotesChars: scalar(results[6]),
-    codeBlocks: scalar(results[7]),
-    codeBlockChars: scalar(results[8]),
-    interconnections: scalar(results[9]),
-    tagCounts,
-    firebaseLinks: scalar(results[10]),
-    externalLinks: scalar(results[11]),
-  };
-};
+const Loader = () => (
+  <span className="inline-block align-middle">
+    <Spinner size={14} />
+  </span>
+);
 
 export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<Stats>({});
 
   useEffect(() => {
     if (!isOpen) return;
-    loadStats()
-      .then(setStats)
-      .catch(() => setStats(null));
+    setStats({});
+
+    // Defer queries so drawer paints first
+    const timer = setTimeout(() => {
+      const queries = [
+      { key: "pages" as const, query: queryPages },
+      { key: "nonCodeBlocks" as const, query: queryNonCodeBlocks },
+      { key: "nonCodeBlockWords" as const, query: queryNonCodeBlockWords },
+      { key: "nonCodeBlockChars" as const, query: queryNonCodeBlockCharacters },
+      { key: "blockquotes" as const, query: queryBlockquotes },
+      { key: "blockquotesWords" as const, query: queryBlockquotesWords },
+      { key: "blockquotesChars" as const, query: queryBlockquotesCharacters },
+      { key: "codeBlocks" as const, query: queryCodeBlocks },
+      { key: "codeBlockChars" as const, query: queryCodeBlockCharacters },
+      { key: "interconnections" as const, query: queryInterconnections },
+      { key: "firebaseLinks" as const, query: queryFireBaseAttachements },
+      { key: "externalLinks" as const, query: queryExternalLinks },
+    ];
+
+    queries.forEach(({ key, query }) => {
+      runQuery(query)
+        .then((r) => setStats((prev) => ({ ...prev, [key]: scalar(r) })))
+        .catch(() => setStats((prev) => ({ ...prev, [key]: 0 })));
+    });
+
+    TAGS.forEach((tag) => {
+      runQuery(queryTagRefs(tag))
+        .then((r) =>
+          setStats((prev) => ({
+            ...prev,
+            tagCounts: { ...(prev.tagCounts ?? {}), [tag]: scalar(r) },
+          }))
+        )
+        .catch(() =>
+          setStats((prev) => ({
+            ...prev,
+            tagCounts: { ...(prev.tagCounts ?? {}), [tag]: 0 },
+          }))
+        );
+    });
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   return (
@@ -133,63 +135,68 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
   color: white; 
   opacity: 0.7; 
 }`}</style>
-        {!stats ? (
-          <p>Loading stats...</p>
-        ) : (
-          <>
-            <p>Pages: {stats.pages}</p>
-            <p>
-              Text Blocks / Words / Characters: <br />
-              {stats.nonCodeBlocks} / {stats.nonCodeBlockWords} /{" "}
-              {stats.nonCodeBlockChars}
-            </p>
-            <p>
-              <a
-                style={{ color: "lightgrey" }}
-                onClick={() =>
-                  window.roamAlphaAPI.ui.mainWindow.openPage({
-                    page: { title: ">" },
-                  })
-                }
-              >
-                Block Quotes
-              </a>{" "}
-              / Words / Characters: <br />
-              {stats.blockquotes} / {stats.blockquotesWords} /{" "}
-              {stats.blockquotesChars}
-            </p>
-            <p>
-              Code Blocks / Characters:
-              <br />
-              {stats.codeBlocks} / {stats.codeBlockChars}
-            </p>
-            <p>
-              Interconnections (refs): {stats.interconnections}
-            </p>
-            <p className="flex flex-col">
-              {TAGS.map((tag) => (
-                <span key={tag}>
-                  <a
-                    style={{ color: "lightgrey" }}
-                    onClick={() =>
-                      window.roamAlphaAPI.ui.mainWindow.openPage({
-                        page: { title: tag },
-                      })
-                    }
-                  >
-                    {tag}
-                  </a>
-                  : {stats.tagCounts[tag] ?? 0}
-                </span>
-              ))}
-            </p>
-            <p>
-              Firebase Links: {stats.firebaseLinks}
-              <br />
-              External Links: {stats.externalLinks}
-            </p>
-          </>
-        )}
+        <>
+          <p>
+            Pages: {stats.pages != null ? stats.pages : <Loader />}
+          </p>
+          <p>
+            Text Blocks / Words / Characters: <br />
+            {stats.nonCodeBlocks != null ? stats.nonCodeBlocks : <Loader />} /{" "}
+            {stats.nonCodeBlockWords != null ? stats.nonCodeBlockWords : <Loader />} /{" "}
+            {stats.nonCodeBlockChars != null ? stats.nonCodeBlockChars : <Loader />}
+          </p>
+          <p>
+            <a
+              style={{ color: "lightgrey" }}
+              onClick={() =>
+                window.roamAlphaAPI.ui.mainWindow.openPage({
+                  page: { title: ">" },
+                })
+              }
+            >
+              Block Quotes
+            </a>{" "}
+            / Words / Characters: <br />
+            {stats.blockquotes != null ? stats.blockquotes : <Loader />} /{" "}
+            {stats.blockquotesWords != null ? stats.blockquotesWords : <Loader />} /{" "}
+            {stats.blockquotesChars != null ? stats.blockquotesChars : <Loader />}
+          </p>
+          <p>
+            Code Blocks / Characters:
+            <br />
+            {stats.codeBlocks != null ? stats.codeBlocks : <Loader />} /{" "}
+            {stats.codeBlockChars != null ? stats.codeBlockChars : <Loader />}
+          </p>
+          <p>
+            Interconnections (refs):{" "}
+            {stats.interconnections != null ? stats.interconnections : <Loader />}
+          </p>
+          <p className="flex flex-col">
+            {TAGS.map((tag) => (
+              <span key={tag}>
+                <a
+                  style={{ color: "lightgrey" }}
+                  onClick={() =>
+                    window.roamAlphaAPI.ui.mainWindow.openPage({
+                      page: { title: tag },
+                    })
+                  }
+                >
+                  {tag}
+                </a>
+                :{" "}
+                {stats.tagCounts?.[tag] != null ? stats.tagCounts[tag] : <Loader />}
+              </span>
+            ))}
+          </p>
+          <p>
+            Firebase Links:{" "}
+            {stats.firebaseLinks != null ? stats.firebaseLinks : <Loader />}
+            <br />
+            External Links:{" "}
+            {stats.externalLinks != null ? stats.externalLinks : <Loader />}
+          </p>
+        </>
         <p>
           Display Name: {getCurrentUserDisplayName()}
           <br />
