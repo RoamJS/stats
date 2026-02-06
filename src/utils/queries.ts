@@ -94,3 +94,7 @@ export const queryExternalLinks = `[:find (count ?e) . :where
    (not [(clojure.string/includes? ?s "https://firebasestorage.googleapis.com")])
    (or [(clojure.string/includes? ?s "https://")]
        [(clojure.string/includes? ?s "http://")])]`;
+
+/** Run a Datalog query using data.async.q. Returns a Promise. */
+export const runQuery = (query: string) =>
+  window.roamAlphaAPI.data.async.q(query);

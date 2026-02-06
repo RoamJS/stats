@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import renderOverlay, {
   RoamOverlayProps,
 } from "roamjs-components/util/renderOverlay";
@@ -6,7 +6,9 @@ import getCurrentUserEmail from "roamjs-components/queries/getCurrentUserEmail";
 import getCurrentUserDisplayName from "roamjs-components/queries/getCurrentUserDisplayName";
 import { Drawer, Classes } from "@blueprintjs/core";
 
+import { scalar } from "~/utils/scalar";
 import {
+  runQuery,
   queryPages,
   queryNonCodeBlocks,
   queryNonCodeBlockWords,
@@ -20,11 +22,91 @@ import {
   queryTagRefs,
   queryFireBaseAttachements,
   queryExternalLinks,
-} from "../utils/queries";
+} from "~/utils/queries";
+
+const TAGS = [
+  "TODO",
+  "DONE",
+  "query",
+  "embed",
+  "table",
+  "kanban",
+  "video",
+  "roam/js",
+];
+
+type Stats = {
+  pages: number;
+  nonCodeBlocks: number;
+  nonCodeBlockWords: number;
+  nonCodeBlockChars: number;
+  blockquotes: number;
+  blockquotesWords: number;
+  blockquotesChars: number;
+  codeBlocks: number;
+  codeBlockChars: number;
+  interconnections: number;
+  tagCounts: Record<string, number>;
+  firebaseLinks: number;
+  externalLinks: number;
+};
 
 const STATS_DRAWER_ID = "roamjs-stats-drawer";
 
+const baseQueries = [
+  queryPages,
+  queryNonCodeBlocks,
+  queryNonCodeBlockWords,
+  queryNonCodeBlockCharacters,
+  queryBlockquotes,
+  queryBlockquotesWords,
+  queryBlockquotesCharacters,
+  queryCodeBlocks,
+  queryCodeBlockCharacters,
+  queryInterconnections,
+  queryFireBaseAttachements,
+  queryExternalLinks,
+];
+
+const loadStats = async (): Promise<Stats> => {
+  const results = await Promise.all([
+    ...baseQueries.map(runQuery),
+    ...TAGS.map((tag) => runQuery(queryTagRefs(tag))),
+  ]);
+
+  const tagOffset = baseQueries.length;
+  const tagCounts: Record<string, number> = {};
+  TAGS.forEach((tag, i) => {
+    tagCounts[tag] = scalar(results[tagOffset + i]);
+  });
+
+  return {
+    pages: scalar(results[0]),
+    nonCodeBlocks: scalar(results[1]),
+    nonCodeBlockWords: scalar(results[2]),
+    nonCodeBlockChars: scalar(results[3]),
+    blockquotes: scalar(results[4]),
+    blockquotesWords: scalar(results[5]),
+    blockquotesChars: scalar(results[6]),
+    codeBlocks: scalar(results[7]),
+    codeBlockChars: scalar(results[8]),
+    interconnections: scalar(results[9]),
+    tagCounts,
+    firebaseLinks: scalar(results[10]),
+    externalLinks: scalar(results[11]),
+  };
+};
+
 export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    loadStats()
+      .then(setStats)
+      .catch(() => setStats(null));
+  }, [isOpen]);
+
   return (
     <Drawer
       onClose={onClose}
@@ -51,75 +133,63 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
   color: white; 
   opacity: 0.7; 
 }`}</style>
-        <p>
-          Pages:{" "}
-          {window.roamAlphaAPI.q(queryPages)[0]}
-        </p>
-        <p>
-          Text Blocks / Words / Characters: <br />
-          {window.roamAlphaAPI.q(queryNonCodeBlocks)} /
-          {window.roamAlphaAPI.q(queryNonCodeBlockWords)} /
-          {window.roamAlphaAPI.q(queryNonCodeBlockCharacters)}
-        </p>
-        <p>
-          <a
-            style={{ color: "lightgrey" }}
-            onClick={() =>
-              window.roamAlphaAPI.ui.mainWindow.openPage({
-                page: { title: ">" },
-              })
-            }
-          >
-            Block Quotes
-          </a>{" "}
-          / Words / Characters: <br />
-          {window.roamAlphaAPI.q(queryBlockquotes)} /{" "}
-          {window.roamAlphaAPI.q(queryBlockquotesWords)} /{" "}
-          {window.roamAlphaAPI.q(queryBlockquotesCharacters)}
-        </p>
-        <p>
-          Code Blocks / Characters:
-          <br />
-          {window.roamAlphaAPI.q(queryCodeBlocks)} /
-          {window.roamAlphaAPI.q(queryCodeBlockCharacters)}
-        </p>
-        <p>
-          Interconnections (refs):
-          {window.roamAlphaAPI.q(queryInterconnections)}
-        </p>
-        <p className="flex flex-col">
-          {[
-            "TODO",
-            "DONE",
-            "query",
-            "embed",
-            "table",
-            "kanban",
-            "video",
-            "roam/js",
-          ].map((tag) => (
-            <span key={tag}>
+        {!stats ? (
+          <p>Loading stats...</p>
+        ) : (
+          <>
+            <p>Pages: {stats.pages}</p>
+            <p>
+              Text Blocks / Words / Characters: <br />
+              {stats.nonCodeBlocks} / {stats.nonCodeBlockWords} /{" "}
+              {stats.nonCodeBlockChars}
+            </p>
+            <p>
               <a
                 style={{ color: "lightgrey" }}
                 onClick={() =>
                   window.roamAlphaAPI.ui.mainWindow.openPage({
-                    page: { title: tag },
+                    page: { title: ">" },
                   })
                 }
               >
-                {tag}
-              </a>
-              :{" "}
-              {window.roamAlphaAPI.q(queryTagRefs(tag)) || 0}
-            </span>
-          ))}
-        </p>
-        <p>
-          Firebase Links:{" "}
-          {window.roamAlphaAPI.q(queryFireBaseAttachements) || 0}
-          <br />
-          External Links: {window.roamAlphaAPI.q(queryExternalLinks) || 0}
-        </p>
+                Block Quotes
+              </a>{" "}
+              / Words / Characters: <br />
+              {stats.blockquotes} / {stats.blockquotesWords} /{" "}
+              {stats.blockquotesChars}
+            </p>
+            <p>
+              Code Blocks / Characters:
+              <br />
+              {stats.codeBlocks} / {stats.codeBlockChars}
+            </p>
+            <p>
+              Interconnections (refs): {stats.interconnections}
+            </p>
+            <p className="flex flex-col">
+              {TAGS.map((tag) => (
+                <span key={tag}>
+                  <a
+                    style={{ color: "lightgrey" }}
+                    onClick={() =>
+                      window.roamAlphaAPI.ui.mainWindow.openPage({
+                        page: { title: tag },
+                      })
+                    }
+                  >
+                    {tag}
+                  </a>
+                  : {stats.tagCounts[tag] ?? 0}
+                </span>
+              ))}
+            </p>
+            <p>
+              Firebase Links: {stats.firebaseLinks}
+              <br />
+              External Links: {stats.externalLinks}
+            </p>
+          </>
+        )}
         <p>
           Display Name: {getCurrentUserDisplayName()}
           <br />
