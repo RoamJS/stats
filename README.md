@@ -8,7 +8,7 @@ Your graph, by the numbers—pages, content, links, and block types in one insta
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoamJS/stats)
 
-![](https://github.com/RoamJS/stats/blob/main/src/media/roamjs-stats.webp)
+![](https://github.com/user-attachments/assets/d3c73c15-5e91-4be3-aa49-471b838681e8)
 
 ## Features
 
