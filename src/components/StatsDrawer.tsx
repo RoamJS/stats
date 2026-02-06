@@ -217,7 +217,7 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
             {/* Content breakdown */}
 
             <div className="grid grid-cols-3 gap-3 min-w-0">
-              <Card elevation={0} className="p-2.5 bg-black/10">
+              <Card elevation={1} className="p-2.5 bg-black/10">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon icon="paragraph" />
                   <H6 className="m-0">Text blocks</H6>
@@ -264,7 +264,7 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                 </HTMLTable>
               </Card>
 
-              <Card elevation={0} className="p-2.5 bg-black/10">
+              <Card elevation={1} className="p-2.5 bg-black/10">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon icon="citation" />
                   <H6 className="m-0">Block quotes</H6>
@@ -311,7 +311,7 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                 </HTMLTable>
               </Card>
 
-              <Card elevation={0} className="p-2.5 bg-black/10">
+              <Card elevation={1} className="p-2.5 bg-black/10">
                 <div className="flex items-center gap-2 mb-2">
                   <Icon icon="code" />
                   <H6 className="m-0">Code blocks</H6>
