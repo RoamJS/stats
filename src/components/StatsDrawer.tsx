@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import renderOverlay, {
   RoamOverlayProps,
 } from "roamjs-components/util/renderOverlay";
 import getCurrentUserEmail from "roamjs-components/queries/getCurrentUserEmail";
 import getCurrentUserDisplayName from "roamjs-components/queries/getCurrentUserDisplayName";
 import {
+  Button,
   Card,
   Classes,
   Drawer,
@@ -18,6 +19,20 @@ import {
 } from "@blueprintjs/core";
 
 import { scalar } from "~/utils/scalar";
+import {
+  formatInt,
+  getAutoLoadPreference,
+  getLoadingKeyForTag,
+  runAfterNextPaint,
+  TAGS,
+} from "~/utils/stats";
+import type {
+  ExtensionAPI,
+  LoadingState,
+  StatMetricKey,
+  Stats,
+  TagName,
+} from "~/types/stats";
 import {
   runQuery,
   queryPages,
@@ -35,38 +50,26 @@ import {
   queryExternalLinks,
 } from "~/utils/queries";
 
-const TAGS = [
-  "TODO",
-  "DONE",
-  "query",
-  "embed",
-  "table",
-  "kanban",
-  "video",
-  "roam/js",
-];
+const STAT_QUERIES: Record<StatMetricKey, string> = {
+  pages: queryPages,
+  nonCodeBlocks: queryNonCodeBlocks,
+  nonCodeBlockWords: queryNonCodeBlockWords,
+  nonCodeBlockChars: queryNonCodeBlockCharacters,
+  blockquotes: queryBlockquotes,
+  blockquotesWords: queryBlockquotesWords,
+  blockquotesChars: queryBlockquotesCharacters,
+  codeBlocks: queryCodeBlocks,
+  codeBlockChars: queryCodeBlockCharacters,
+  interconnections: queryInterconnections,
+  firebaseLinks: queryFireBaseAttachements,
+  externalLinks: queryExternalLinks,
+};
 
-type Stats = Partial<{
-  pages: number;
-  nonCodeBlocks: number;
-  nonCodeBlockWords: number;
-  nonCodeBlockChars: number;
-  blockquotes: number;
-  blockquotesWords: number;
-  blockquotesChars: number;
-  codeBlocks: number;
-  codeBlockChars: number;
-  interconnections: number;
-  tagCounts: Record<string, number>;
-  firebaseLinks: number;
-  externalLinks: number;
-}>;
+const STAT_METRIC_KEYS = Object.keys(STAT_QUERIES) as StatMetricKey[];
 
 const STATS_DRAWER_ID = "roamjs-stats-drawer";
 
-const formatInt = (n: number) => n.toLocaleString();
-
-const Loader = () => (
+const Loader = (): React.ReactElement => (
   <span className="inline-block align-middle">
     <Spinner size={14} />
   </span>
@@ -78,7 +81,7 @@ type MetricProps = {
   icon: React.ComponentProps<typeof Icon>["icon"];
 };
 
-const Metric = ({ label, value, icon }: MetricProps) => (
+const Metric = ({ label, value, icon }: MetricProps): React.ReactElement => (
   <div className="flex flex-col gap-1">
     <div className="flex items-center gap-2 opacity-75">
       <Icon icon={icon} size={14} />
@@ -88,57 +91,194 @@ const Metric = ({ label, value, icon }: MetricProps) => (
   </div>
 );
 
-export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
+type RenderStatValueArgs = {
+  statKey: StatMetricKey;
+  stats: Stats;
+  loading: LoadingState;
+  autoLoad: boolean;
+  onLoad: ({ statKey }: { statKey: StatMetricKey }) => void;
+};
+
+const renderStatValue = ({
+  statKey,
+  stats,
+  loading,
+  autoLoad,
+  onLoad,
+}: RenderStatValueArgs): React.ReactNode => {
+  const value = stats[statKey];
+  if (value != null) {
+    return formatInt(value);
+  }
+
+  if (loading[statKey]) {
+    return <Loader />;
+  }
+
+  if (!autoLoad) {
+    return (
+      <Button
+        small
+        minimal
+        icon="download"
+        onClick={(e: React.MouseEvent<HTMLElement>) => {
+          e.stopPropagation();
+          onLoad({ statKey });
+        }}
+        text="Load"
+      />
+    );
+  }
+
+  return <Loader />;
+};
+
+type RenderTagValueArgs = {
+  tag: TagName;
+  stats: Stats;
+  loading: LoadingState;
+  autoLoad: boolean;
+  onLoad: ({ tag }: { tag: TagName }) => void;
+};
+
+const renderTagValue = ({
+  tag,
+  stats,
+  loading,
+  autoLoad,
+  onLoad,
+}: RenderTagValueArgs): React.ReactNode => {
+  const count = stats.tagCounts?.[tag];
+  if (count != null) {
+    return formatInt(count);
+  }
+
+  const loadingKey = getLoadingKeyForTag(tag);
+  if (loading[loadingKey]) {
+    return <Loader />;
+  }
+
+  if (!autoLoad) {
+    return (
+      <Button
+        small
+        minimal
+        icon="download"
+        onClick={(e: React.MouseEvent<HTMLElement>) => {
+          e.stopPropagation();
+          onLoad({ tag });
+        }}
+        text="Load"
+      />
+    );
+  }
+
+  return <Loader />;
+};
+
+export const StatsDrawer = ({
+  onClose,
+  isOpen,
+  extensionAPI,
+}: RoamOverlayProps<{ extensionAPI: ExtensionAPI }>): React.ReactElement => {
   const [stats, setStats] = useState<Stats>({});
+  const [loading, setLoading] = useState<LoadingState>({});
+  const [autoLoad, setAutoLoad] = useState<boolean>(() =>
+    getAutoLoadPreference({ extensionAPI }),
+  );
+  const loadingRef = useRef<LoadingState>({});
+
+  const setLoadingState = useCallback(
+    ({
+      loadingKey,
+      isLoading,
+    }: {
+      loadingKey: string;
+      isLoading: boolean;
+    }): void => {
+      loadingRef.current = { ...loadingRef.current, [loadingKey]: isLoading };
+      setLoading((prev) => ({ ...prev, [loadingKey]: isLoading }));
+    },
+    [],
+  );
+
+  const loadMetric = useCallback(
+    ({ statKey }: { statKey: StatMetricKey }): void => {
+      if (loadingRef.current[statKey]) {
+        return;
+      }
+
+      setLoadingState({ loadingKey: statKey, isLoading: true });
+      setTimeout(() => {
+        runQuery(STAT_QUERIES[statKey])
+          .then((result) => {
+            setStats((prev) => ({ ...prev, [statKey]: scalar(result) }));
+          })
+          .catch(() => {
+            setStats((prev) => ({ ...prev, [statKey]: 0 }));
+          })
+          .finally(() => {
+            setLoadingState({ loadingKey: statKey, isLoading: false });
+          });
+      }, 0);
+    },
+    [setLoadingState],
+  );
+
+  const loadTag = useCallback(
+    ({ tag }: { tag: TagName }): void => {
+      const loadingKey = getLoadingKeyForTag(tag);
+      if (loadingRef.current[loadingKey]) {
+        return;
+      }
+
+      setLoadingState({ loadingKey, isLoading: true });
+      runAfterNextPaint({
+        callback: () => {
+          runQuery(queryTagRefs(tag))
+            .then((result) => {
+              setStats((prev) => ({
+                ...prev,
+                tagCounts: { ...(prev.tagCounts ?? {}), [tag]: scalar(result) },
+              }));
+            })
+            .catch(() => {
+              setStats((prev) => ({
+                ...prev,
+                tagCounts: { ...(prev.tagCounts ?? {}), [tag]: 0 },
+              }));
+            })
+            .finally(() => {
+              setLoadingState({ loadingKey, isLoading: false });
+            });
+        },
+      });
+    },
+    [setLoadingState],
+  );
+
+  const loadAllStats = useCallback((): void => {
+    STAT_METRIC_KEYS.forEach((statKey) => loadMetric({ statKey }));
+    TAGS.forEach((tag) => loadTag({ tag }));
+  }, [loadMetric, loadTag]);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    const nextAutoLoad = getAutoLoadPreference({ extensionAPI });
+    setAutoLoad(nextAutoLoad);
     setStats({});
+    setLoading({});
+    loadingRef.current = {};
 
-    const timer = setTimeout(() => {
-      const queries = [
-        { key: "pages" as const, query: queryPages },
-        { key: "nonCodeBlocks" as const, query: queryNonCodeBlocks },
-        { key: "nonCodeBlockWords" as const, query: queryNonCodeBlockWords },
-        {
-          key: "nonCodeBlockChars" as const,
-          query: queryNonCodeBlockCharacters,
-        },
-        { key: "blockquotes" as const, query: queryBlockquotes },
-        { key: "blockquotesWords" as const, query: queryBlockquotesWords },
-        { key: "blockquotesChars" as const, query: queryBlockquotesCharacters },
-        { key: "codeBlocks" as const, query: queryCodeBlocks },
-        { key: "codeBlockChars" as const, query: queryCodeBlockCharacters },
-        { key: "interconnections" as const, query: queryInterconnections },
-        { key: "firebaseLinks" as const, query: queryFireBaseAttachements },
-        { key: "externalLinks" as const, query: queryExternalLinks },
-      ];
-
-      queries.forEach(({ key, query }) => {
-        runQuery(query)
-          .then((r) => setStats((prev) => ({ ...prev, [key]: scalar(r) })))
-          .catch(() => setStats((prev) => ({ ...prev, [key]: 0 })));
-      });
-
-      TAGS.forEach((tag) => {
-        runQuery(queryTagRefs(tag))
-          .then((r) =>
-            setStats((prev) => ({
-              ...prev,
-              tagCounts: { ...(prev.tagCounts ?? {}), [tag]: scalar(r) },
-            })),
-          )
-          .catch(() =>
-            setStats((prev) => ({
-              ...prev,
-              tagCounts: { ...(prev.tagCounts ?? {}), [tag]: 0 },
-            })),
-          );
-      });
+    const timer = window.setTimeout(() => {
+      if (nextAutoLoad) {
+        loadAllStats();
+      }
     }, 100);
 
-    return () => clearTimeout(timer);
-  }, [isOpen]);
+    return () => window.clearTimeout(timer);
+  }, [extensionAPI, isOpen, loadAllStats]);
 
   return (
     <Drawer
@@ -161,53 +301,74 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
     >
       <div className={Classes.DRAWER_BODY}>
         <div className="p-3">
+          {!autoLoad && (
+            <Card elevation={0} className="mb-3 p-2.5 bg-black/5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className={`${Classes.TEXT_SMALL} m-0 opacity-70`}>
+                  Manual mode is on. Use the extension settings panel to turn
+                  auto-load back on.
+                </p>
+                <Button
+                  small
+                  icon="download"
+                  intent={Intent.PRIMARY}
+                  onClick={loadAllStats}
+                  text="Load all stats"
+                />
+              </div>
+            </Card>
+          )}
           {/* Top overview */}
           <div className="grid grid-cols-4 gap-3 mb-3">
             <Card elevation={1} className="p-3">
               <Metric
                 label="Pages"
-                value={
-                  stats.pages != null ? formatInt(stats.pages) : <Loader />
-                }
+                value={renderStatValue({
+                  statKey: "pages",
+                  stats,
+                  loading,
+                  autoLoad,
+                  onLoad: loadMetric,
+                })}
                 icon="document"
               />
             </Card>
             <Card elevation={1} className="p-3">
               <Metric
                 label="Interconnections"
-                value={
-                  stats.interconnections != null ? (
-                    formatInt(stats.interconnections)
-                  ) : (
-                    <Loader />
-                  )
-                }
+                value={renderStatValue({
+                  statKey: "interconnections",
+                  stats,
+                  loading,
+                  autoLoad,
+                  onLoad: loadMetric,
+                })}
                 icon="link"
               />
             </Card>
             <Card elevation={1} className="p-3">
               <Metric
                 label="Firebase links"
-                value={
-                  stats.firebaseLinks != null ? (
-                    formatInt(stats.firebaseLinks)
-                  ) : (
-                    <Loader />
-                  )
-                }
+                value={renderStatValue({
+                  statKey: "firebaseLinks",
+                  stats,
+                  loading,
+                  autoLoad,
+                  onLoad: loadMetric,
+                })}
                 icon="cloud"
               />
             </Card>
             <Card elevation={1} className="p-3">
               <Metric
                 label="External links"
-                value={
-                  stats.externalLinks != null ? (
-                    formatInt(stats.externalLinks)
-                  ) : (
-                    <Loader />
-                  )
-                }
+                value={renderStatValue({
+                  statKey: "externalLinks",
+                  stats,
+                  loading,
+                  autoLoad,
+                  onLoad: loadMetric,
+                })}
                 icon="share"
               />
             </Card>
@@ -229,11 +390,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Blocks
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.nonCodeBlocks != null ? (
-                          formatInt(stats.nonCodeBlocks)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "nonCodeBlocks",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                     <tr>
@@ -241,11 +404,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Words
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.nonCodeBlockWords != null ? (
-                          formatInt(stats.nonCodeBlockWords)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "nonCodeBlockWords",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                     <tr>
@@ -253,11 +418,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Characters
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.nonCodeBlockChars != null ? (
-                          formatInt(stats.nonCodeBlockChars)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "nonCodeBlockChars",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                   </tbody>
@@ -276,11 +443,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Quotes
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.blockquotes != null ? (
-                          formatInt(stats.blockquotes)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "blockquotes",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                     <tr>
@@ -288,11 +457,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Words
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.blockquotesWords != null ? (
-                          formatInt(stats.blockquotesWords)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "blockquotesWords",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                     <tr>
@@ -300,11 +471,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Characters
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.blockquotesChars != null ? (
-                          formatInt(stats.blockquotesChars)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "blockquotesChars",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                   </tbody>
@@ -323,11 +496,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Blocks
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.codeBlocks != null ? (
-                          formatInt(stats.codeBlocks)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "codeBlocks",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                     <tr>
@@ -335,11 +510,13 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                         Characters
                       </td>
                       <td className="text-right tabular-nums">
-                        {stats.codeBlockChars != null ? (
-                          formatInt(stats.codeBlockChars)
-                        ) : (
-                          <Loader />
-                        )}
+                        {renderStatValue({
+                          statKey: "codeBlockChars",
+                          stats,
+                          loading,
+                          autoLoad,
+                          onLoad: loadMetric,
+                        })}
                       </td>
                     </tr>
                   </tbody>
@@ -363,20 +540,27 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
                           ? Intent.SUCCESS
                           : Intent.NONE
                     }
-                    onClick={() =>
+                    onClick={() => {
+                      if (!autoLoad && stats.tagCounts?.[tag] == null) {
+                        loadTag({ tag });
+                        return;
+                      }
+
                       window.roamAlphaAPI.ui.mainWindow.openPage({
                         page: { title: tag },
-                      })
-                    }
+                      });
+                    }}
                     className="cursor-pointer"
                   >
                     <span className="opacity-90">{tag}</span>{" "}
                     <span className="font-bold">
-                      {stats.tagCounts?.[tag] != null ? (
-                        formatInt(stats.tagCounts[tag])
-                      ) : (
-                        <Loader />
-                      )}
+                      {renderTagValue({
+                        tag,
+                        stats,
+                        loading,
+                        autoLoad,
+                        onLoad: loadTag,
+                      })}
                     </span>
                   </Tag>
                 ))}
@@ -411,7 +595,11 @@ export const StatsDrawer = ({ onClose, isOpen }: RoamOverlayProps<{}>) => {
 
 let closeStatsDrawer: (() => void) | null = null;
 
-export const toggleStatsDrawer = () => {
+export const toggleStatsDrawer = ({
+  extensionAPI,
+}: {
+  extensionAPI: ExtensionAPI;
+}): void => {
   if (document.getElementById(STATS_DRAWER_ID)) {
     closeStatsDrawer?.();
     closeStatsDrawer = null;
@@ -420,6 +608,7 @@ export const toggleStatsDrawer = () => {
       renderOverlay({
         id: STATS_DRAWER_ID,
         Overlay: StatsDrawer,
+        props: { extensionAPI },
       }) ?? null;
   }
 };
