@@ -6,7 +6,7 @@
 
 Know your graph in seconds—pages, words, links, and tags in one sleek drawer.
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/RoamJS/stats)
+[![RoamJS](https://roamjs.com/badges/website.svg)](https://roamjs.com/) [![DeepWiki](https://roamjs.com/badges/deepwiki.svg)](https://deepwiki.com/RoamJS/stats) [![Slack](https://roamjs.com/badges/slack.svg)](https://roamresearch.slack.com/archives/C016N2B66JU)
 
 ![](https://github.com/user-attachments/assets/d3c73c15-5e91-4be3-aa49-471b838681e8)
 
