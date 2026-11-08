@@ -8,7 +8,6 @@ import {
   Button,
   Card,
   Classes,
-  Drawer,
   H4,
   H6,
   HTMLTable,
@@ -18,6 +17,7 @@ import {
   Tag,
 } from "@blueprintjs/core";
 
+import { StatsDrawerSurface } from "~/components/StatsDrawerSurface";
 import { scalar } from "~/utils/scalar";
 import {
   formatInt,
@@ -281,315 +281,283 @@ export const StatsDrawer = ({
   }, [extensionAPI, isOpen, loadAllStats]);
 
   return (
-    <Drawer
-      onClose={onClose}
-      isOpen={isOpen}
-      title={
-        <div className="flex items-center gap-2.5">
-          <Icon icon="database" />
-          <span>Stats</span>
-        </div>
-      }
-      position="right"
-      hasBackdrop={false}
-      canOutsideClickClose={false}
-      style={{ width: 760, maxWidth: "95vw" }}
-      portalClassName="pointer-events-none"
-      className="roamjs-stats-drawer pointer-events-auto"
-      enforceFocus={false}
-      autoFocus={false}
-    >
-      <div className={Classes.DRAWER_BODY}>
-        <div className="p-3">
-          {!autoLoad && (
-            <Card elevation={0} className="mb-3 p-2.5 bg-black/5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className={`${Classes.TEXT_SMALL} m-0 opacity-70`}>
-                  Manual mode is on. Use the extension settings panel to turn
-                  auto-load back on.
-                </p>
-                <Button
-                  small
-                  icon="download"
-                  intent={Intent.PRIMARY}
-                  onClick={loadAllStats}
-                  text="Load all stats"
-                />
-              </div>
-            </Card>
-          )}
-          {/* Top overview */}
-          <div className="grid grid-cols-4 gap-3 mb-3">
-            <Card elevation={1} className="p-3">
-              <Metric
-                label="Pages"
-                value={renderStatValue({
-                  statKey: "pages",
-                  stats,
-                  loading,
-                  autoLoad,
-                  onLoad: loadMetric,
-                })}
-                icon="document"
+    <StatsDrawerSurface isOpen={isOpen} onClose={onClose}>
+      <div className="roamjs-stats-content grid gap-3">
+        {!autoLoad && (
+          <Card elevation={0} className="p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className={`${Classes.TEXT_SMALL} m-0 opacity-70`}>
+                Manual mode is on. Use the extension settings panel to turn
+                auto-load back on.
+              </p>
+              <Button
+                small
+                icon="download"
+                intent={Intent.PRIMARY}
+                onClick={loadAllStats}
+                text="Load all stats"
               />
-            </Card>
-            <Card elevation={1} className="p-3">
-              <Metric
-                label="Interconnections"
-                value={renderStatValue({
-                  statKey: "interconnections",
-                  stats,
-                  loading,
-                  autoLoad,
-                  onLoad: loadMetric,
-                })}
-                icon="link"
-              />
-            </Card>
-            <Card elevation={1} className="p-3">
-              <Metric
-                label="Firebase links"
-                value={renderStatValue({
-                  statKey: "firebaseLinks",
-                  stats,
-                  loading,
-                  autoLoad,
-                  onLoad: loadMetric,
-                })}
-                icon="cloud"
-              />
-            </Card>
-            <Card elevation={1} className="p-3">
-              <Metric
-                label="External links"
-                value={renderStatValue({
-                  statKey: "externalLinks",
-                  stats,
-                  loading,
-                  autoLoad,
-                  onLoad: loadMetric,
-                })}
-                icon="share"
-              />
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-[2fr_1fr] gap-3 mt-3">
-            {/* Content breakdown */}
-
-            <div className="grid grid-cols-3 gap-3 min-w-0">
-              <Card elevation={1} className="p-2.5 bg-black/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon icon="paragraph" />
-                  <H6 className="m-0">Text blocks</H6>
-                </div>
-                <HTMLTable condensed striped={false} className="w-full">
-                  <tbody>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Blocks
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "nonCodeBlocks",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Words
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "nonCodeBlockWords",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Characters
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "nonCodeBlockChars",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </HTMLTable>
-              </Card>
-
-              <Card elevation={1} className="p-2.5 bg-black/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon icon="citation" />
-                  <H6 className="m-0">Block quotes</H6>
-                </div>
-                <HTMLTable condensed striped={false} className="w-full">
-                  <tbody>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Quotes
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "blockquotes",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Words
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "blockquotesWords",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Characters
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "blockquotesChars",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </HTMLTable>
-              </Card>
-
-              <Card elevation={1} className="p-2.5 bg-black/10">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon icon="code" />
-                  <H6 className="m-0">Code blocks</H6>
-                </div>
-                <HTMLTable condensed striped={false} className="w-full">
-                  <tbody>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Blocks
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "codeBlocks",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className={`${Classes.TEXT_SMALL} opacity-75`}>
-                        Characters
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {renderStatValue({
-                          statKey: "codeBlockChars",
-                          stats,
-                          loading,
-                          autoLoad,
-                          onLoad: loadMetric,
-                        })}
-                      </td>
-                    </tr>
-                  </tbody>
-                </HTMLTable>
-              </Card>
             </div>
-
-            {/* Block types */}
-            <Card elevation={1} className="p-3">
-              <H4 className="mt-0 mb-2">Block types</H4>
-
-              <div className="flex flex-wrap gap-2">
-                {TAGS.map((tag) => (
-                  <Tag
-                    key={tag}
-                    interactive
-                    intent={
-                      tag === "TODO"
-                        ? Intent.WARNING
-                        : tag === "DONE"
-                          ? Intent.SUCCESS
-                          : Intent.NONE
-                    }
-                    onClick={() => {
-                      if (!autoLoad && stats.tagCounts?.[tag] == null) {
-                        loadTag({ tag });
-                        return;
-                      }
-
-                      window.roamAlphaAPI.ui.mainWindow.openPage({
-                        page: { title: tag },
-                      });
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <span className="opacity-90">{tag}</span>{" "}
-                    <span className="font-bold">
-                      {renderTagValue({
-                        tag,
-                        stats,
-                        loading,
-                        autoLoad,
-                        onLoad: loadTag,
-                      })}
-                    </span>
-                  </Tag>
-                ))}
-              </div>
-            </Card>
-            {/* Account */}
-            <Card elevation={1} className="p-3">
-              <H4 className="m-0 opacity-80">Account</H4>
-              <div className="mt-2 grid gap-1.5">
-                <div className="flex justify-between gap-2">
-                  <span className={`${Classes.TEXT_SMALL} opacity-75`}>
-                    Display name
-                  </span>
-                  <span className="tabular-nums">
-                    {getCurrentUserDisplayName()}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <span className={`${Classes.TEXT_SMALL} opacity-75`}>
-                    Email
-                  </span>
-                  <span className="tabular-nums">{getCurrentUserEmail()}</span>
-                </div>
-              </div>
-            </Card>
-          </div>
+          </Card>
+        )}
+        {/* Top overview */}
+        <div className="roamjs-stats-overview grid gap-3">
+          <Card elevation={1} className="p-3">
+            <Metric
+              label="Pages"
+              value={renderStatValue({
+                statKey: "pages",
+                stats,
+                loading,
+                autoLoad,
+                onLoad: loadMetric,
+              })}
+              icon="document"
+            />
+          </Card>
+          <Card elevation={1} className="p-3">
+            <Metric
+              label="Interconnections"
+              value={renderStatValue({
+                statKey: "interconnections",
+                stats,
+                loading,
+                autoLoad,
+                onLoad: loadMetric,
+              })}
+              icon="link"
+            />
+          </Card>
+          <Card elevation={1} className="p-3">
+            <Metric
+              label="Firebase links"
+              value={renderStatValue({
+                statKey: "firebaseLinks",
+                stats,
+                loading,
+                autoLoad,
+                onLoad: loadMetric,
+              })}
+              icon="cloud"
+            />
+          </Card>
+          <Card elevation={1} className="p-3">
+            <Metric
+              label="External links"
+              value={renderStatValue({
+                statKey: "externalLinks",
+                stats,
+                loading,
+                autoLoad,
+                onLoad: loadMetric,
+              })}
+              icon="share"
+            />
+          </Card>
         </div>
+
+        {/* Content breakdown */}
+        <div className="roamjs-stats-breakdown grid gap-3">
+          <Card elevation={1} className="p-2.5 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon icon="paragraph" />
+              <H6 className="m-0">Text blocks</H6>
+            </div>
+            <HTMLTable condensed striped={false} className="w-full">
+              <tbody>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>Blocks</td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "nonCodeBlocks",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>Words</td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "nonCodeBlockWords",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>
+                    Characters
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "nonCodeBlockChars",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+              </tbody>
+            </HTMLTable>
+          </Card>
+
+          <Card elevation={1} className="p-2.5 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon icon="citation" />
+              <H6 className="m-0">Block quotes</H6>
+            </div>
+            <HTMLTable condensed striped={false} className="w-full">
+              <tbody>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>Quotes</td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "blockquotes",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>Words</td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "blockquotesWords",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>
+                    Characters
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "blockquotesChars",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+              </tbody>
+            </HTMLTable>
+          </Card>
+
+          <Card elevation={1} className="p-2.5 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon icon="code" />
+              <H6 className="m-0">Code blocks</H6>
+            </div>
+            <HTMLTable condensed striped={false} className="w-full">
+              <tbody>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>Blocks</td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "codeBlocks",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+                <tr>
+                  <td className={`${Classes.TEXT_SMALL} opacity-75`}>
+                    Characters
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {renderStatValue({
+                      statKey: "codeBlockChars",
+                      stats,
+                      loading,
+                      autoLoad,
+                      onLoad: loadMetric,
+                    })}
+                  </td>
+                </tr>
+              </tbody>
+            </HTMLTable>
+          </Card>
+        </div>
+
+        {/* Block types */}
+        <Card elevation={1} className="p-3">
+          <H4 className="mt-0 mb-2">Block types</H4>
+
+          <div className="flex flex-wrap gap-2">
+            {TAGS.map((tag) => (
+              <Tag
+                key={tag}
+                interactive
+                intent={
+                  tag === "TODO"
+                    ? Intent.WARNING
+                    : tag === "DONE"
+                      ? Intent.SUCCESS
+                      : Intent.NONE
+                }
+                onClick={() => {
+                  if (!autoLoad && stats.tagCounts?.[tag] == null) {
+                    loadTag({ tag });
+                    return;
+                  }
+
+                  window.roamAlphaAPI.ui.mainWindow.openPage({
+                    page: { title: tag },
+                  });
+                }}
+                className="cursor-pointer"
+              >
+                <span className="opacity-90">{tag}</span>{" "}
+                <span className="font-bold">
+                  {renderTagValue({
+                    tag,
+                    stats,
+                    loading,
+                    autoLoad,
+                    onLoad: loadTag,
+                  })}
+                </span>
+              </Tag>
+            ))}
+          </div>
+        </Card>
+        {/* Account */}
+        <Card elevation={1} className="p-3">
+          <H4 className="m-0 opacity-80">Account</H4>
+          <div className="mt-2 grid gap-1.5">
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className={`${Classes.TEXT_SMALL} opacity-75`}>
+                Display name
+              </span>
+              <span className="roamjs-stats-account-value">
+                {getCurrentUserDisplayName()}
+              </span>
+            </div>
+            <div className="flex flex-wrap justify-between gap-2">
+              <span className={`${Classes.TEXT_SMALL} opacity-75`}>Email</span>
+              <span className="roamjs-stats-account-value">
+                {getCurrentUserEmail()}
+              </span>
+            </div>
+          </div>
+        </Card>
       </div>
-    </Drawer>
+    </StatsDrawerSurface>
   );
 };
 

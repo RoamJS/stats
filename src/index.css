@@ -1,0 +1,102 @@
+.bp3-drawer.roamjs-stats-drawer {
+  --stats-base-surface: #fff;
+  --stats-base-card: #fff;
+  --stats-base-text: #182026;
+  --stats-base-border: #d3d4d4;
+  --stats-base-hover: #edf2f5;
+  --stats-base-focus: #106ba3;
+  --stats-surface: var(
+    --roamjs-surface,
+    var(--cdt-popover-surface, var(--stats-base-surface))
+  );
+  --stats-text: var(
+    --roamjs-text,
+    var(--cdt-primary-text, var(--stats-base-text))
+  );
+  --stats-border: var(
+    --roamjs-border,
+    var(--cdt-border, var(--stats-base-border))
+  );
+  --stats-hover: var(
+    --roamjs-hover,
+    var(--cdt-hover-surface, var(--stats-base-hover))
+  );
+  --stats-focus: var(
+    --roamjs-focus,
+    var(--cdt-accent, var(--stats-base-focus))
+  );
+  width: min(760px, calc(100% - 48px));
+  background: var(--stats-surface);
+  color: var(--stats-text);
+  color-scheme: light;
+}
+
+:is(.bp3-dark, .roamjs-custom-dark-theme) .bp3-drawer.roamjs-stats-drawer {
+  --stats-base-surface: #293742;
+  --stats-base-card: #30404d;
+  --stats-base-text: #f5f8fa;
+  --stats-base-border: #536878;
+  --stats-base-hover: #364856;
+  --stats-base-focus: #8abbff;
+  color-scheme: dark;
+}
+
+.roamjs-stats-drawer .roamjs-stats-panel {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.roamjs-stats-drawer .roamjs-stats-header {
+  min-height: 42px;
+  height: auto;
+  padding: 6px 12px 6px 14px;
+  border-bottom: 1px solid var(--stats-border);
+}
+
+.roamjs-stats-drawer .roamjs-stats-header h2 {
+  margin: 0;
+  color: inherit;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.roamjs-stats-drawer .roamjs-stats-header .bp3-button.bp3-minimal,
+.roamjs-stats-drawer .bp3-heading {
+  color: var(--stats-text);
+}
+
+.roamjs-stats-drawer .roamjs-stats-header .bp3-button.bp3-minimal:hover {
+  background: var(--stats-hover);
+}
+
+.roamjs-stats-drawer :is(button, .roamjs-stats-body):focus-visible {
+  outline: 2px solid var(--stats-focus);
+  outline-offset: -2px;
+}
+
+.roamjs-stats-drawer .roamjs-stats-body {
+  overscroll-behavior-y: contain;
+}
+
+.roamjs-stats-drawer .roamjs-stats-content {
+  padding: 16px;
+  overflow-wrap: anywhere;
+}
+
+.roamjs-stats-drawer .roamjs-stats-overview {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+}
+
+.roamjs-stats-drawer .roamjs-stats-breakdown {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+}
+
+.roamjs-stats-drawer .bp3-card {
+  background: var(--cdt-elevated-surface, var(--stats-base-card));
+}
+
+.roamjs-stats-drawer .roamjs-stats-account-value {
+  min-width: 0;
+}
